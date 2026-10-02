@@ -42,8 +42,8 @@ import { Route as AdminShipmentsRouteImport } from './routes/admin/shipments'
 import { Route as TrackIndexRouteImport } from './routes/track/index'
 import { Route as TrackTrackingNumberRouteImport } from './routes/track/$trackingNumber'
 import { Route as AccountShipmentsIdRouteImport } from './routes/account/shipments.$id'
-import { Route as AdminShipmentsIdRouteImport } from './routes/admin/shipments.$id'
 import { Route as AdminCustomersUserIdRouteImport } from './routes/admin/customers.$userId'
+import { Route as AdminShipmentsIdRouteImport } from './routes/admin/shipments.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -211,15 +211,15 @@ const AccountShipmentsIdRoute = AccountShipmentsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AccountShipmentsRoute,
 } as any)
-const AdminShipmentsIdRoute = AdminShipmentsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AdminShipmentsRoute,
-} as any)
 const AdminCustomersUserIdRoute = AdminCustomersUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
   getParentRoute: () => AdminCustomersRoute,
+} as any)
+const AdminShipmentsIdRoute = AdminShipmentsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminShipmentsRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -261,8 +261,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/track/': typeof TrackIndexRoute
   '/account/shipments/$id': typeof AccountShipmentsIdRoute
-  '/admin/shipments/$id': typeof AdminShipmentsIdRoute
   '/admin/customers/$userId': typeof AdminCustomersUserIdRoute
+  '/admin/shipments/$id': typeof AdminShipmentsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -299,8 +299,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/track': typeof TrackIndexRoute
   '/account/shipments/$id': typeof AccountShipmentsIdRoute
-  '/admin/shipments/$id': typeof AdminShipmentsIdRoute
   '/admin/customers/$userId': typeof AdminCustomersUserIdRoute
+  '/admin/shipments/$id': typeof AdminShipmentsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -338,8 +338,8 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/track/': typeof TrackIndexRoute
   '/account/shipments/$id': typeof AccountShipmentsIdRoute
-  '/admin/shipments/$id': typeof AdminShipmentsIdRoute
   '/admin/customers/$userId': typeof AdminCustomersUserIdRoute
+  '/admin/shipments/$id': typeof AdminShipmentsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -378,8 +378,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/track/'
     | '/account/shipments/$id'
-    | '/admin/shipments/$id'
     | '/admin/customers/$userId'
+    | '/admin/shipments/$id'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -416,8 +416,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/track'
     | '/account/shipments/$id'
-    | '/admin/shipments/$id'
     | '/admin/customers/$userId'
+    | '/admin/shipments/$id'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -454,8 +454,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/track/'
     | '/account/shipments/$id'
-    | '/admin/shipments/$id'
     | '/admin/customers/$userId'
+    | '/admin/shipments/$id'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -728,19 +728,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountShipmentsIdRouteImport
       parentRoute: typeof AccountShipmentsRoute
     }
-    '/admin/shipments/$id': {
-      id: '/admin/shipments/$id'
-      path: '/$id'
-      fullPath: '/admin/shipments/$id'
-      preLoaderRoute: typeof AdminShipmentsIdRouteImport
-      parentRoute: typeof AdminShipmentsRoute
-    }
     '/admin/customers/$userId': {
       id: '/admin/customers/$userId'
       path: '/$userId'
       fullPath: '/admin/customers/$userId'
       preLoaderRoute: typeof AdminCustomersUserIdRouteImport
       parentRoute: typeof AdminCustomersRoute
+    }
+    '/admin/shipments/$id': {
+      id: '/admin/shipments/$id'
+      path: '/$id'
+      fullPath: '/admin/shipments/$id'
+      preLoaderRoute: typeof AdminShipmentsIdRouteImport
+      parentRoute: typeof AdminShipmentsRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -763,18 +763,6 @@ const AccountShipmentsRouteChildren: AccountShipmentsRouteChildren = {
 const AccountShipmentsRouteWithChildren =
   AccountShipmentsRoute._addFileChildren(AccountShipmentsRouteChildren)
 
-interface AdminShipmentsRouteChildren {
-  AdminShipmentsIdRoute: typeof AdminShipmentsIdRoute
-}
-
-const AdminShipmentsRouteChildren: AdminShipmentsRouteChildren = {
-  AdminShipmentsIdRoute: AdminShipmentsIdRoute,
-}
-
-const AdminShipmentsRouteWithChildren = AdminShipmentsRoute._addFileChildren(
-  AdminShipmentsRouteChildren,
-)
-
 interface AdminCustomersRouteChildren {
   AdminCustomersUserIdRoute: typeof AdminCustomersUserIdRoute
 }
@@ -785,6 +773,18 @@ const AdminCustomersRouteChildren: AdminCustomersRouteChildren = {
 
 const AdminCustomersRouteWithChildren = AdminCustomersRoute._addFileChildren(
   AdminCustomersRouteChildren,
+)
+
+interface AdminShipmentsRouteChildren {
+  AdminShipmentsIdRoute: typeof AdminShipmentsIdRoute
+}
+
+const AdminShipmentsRouteChildren: AdminShipmentsRouteChildren = {
+  AdminShipmentsIdRoute: AdminShipmentsIdRoute,
+}
+
+const AdminShipmentsRouteWithChildren = AdminShipmentsRoute._addFileChildren(
+  AdminShipmentsRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
