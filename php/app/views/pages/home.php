@@ -55,7 +55,7 @@ $steps = [
       <p style="font-weight:600;">Track a shipment</p>
       <p class="small" style="margin-top:0.25rem;color:color-mix(in oklab, var(--paper) 60%, transparent);">Use a SwiftShip tracking number (SWF…)</p>
       <div style="margin-top:1rem;">
-        <?php require __DIR__ . '/partials/track-form.php'; ?>
+        <?php $variant = 'hero'; require __DIR__ . '/../partials/track-form.php'; ?>
       </div>
       <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.5rem;">
         <a class="btn btn-linen btn-sm" href="/ship">Ship a package</a>
