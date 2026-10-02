@@ -1,59 +1,88 @@
-# Base44 dev environment for SwiftShip Logistics.
+# Base44 dev environment — SwiftShip Logistics.
 #
-# Runs the project's own Vite dev server straight from the cloned source
-# (bind-mounted at /app) so edits appear live in the preview — no prebuilt
-# application image, no production Dockerfile.
+# The PREVIEW APP IS THE PHP PORT (plain PHP + PDO + SQLite) in ./php.
+# `php -S` serves it straight from the bind-mounted source, so every edit shows
+# up on the next request — no build step, no prebuilt image.
 #
-# No external services are needed to boot:
-#   * DATABASE_URL is intentionally unset, so src/lib/db.ts uses the app's
-#     embedded PGlite database and applies migrations/*.sql on first query.
-#   * Better Auth falls back to its preview mode (per-process signing secret,
-#     local email/password sign-in enabled in src/lib/auth/email-password.ts).
+# Mailpit is the local SMTP sink: every welcome email is captured and readable at
+# https://8025-${BASE44_PUBLIC_HOST_SUFFIX} — no external credentials needed to
+# see the branded email working.
+#
+# The original TanStack Start app is still runnable behind the "node" profile:
+#   docker compose -f docker-compose.base44.yml --profile node up -d node
 services:
-  web:
-    image: node:22-bookworm-slim
+  php:
+    image: php:8.3-cli
     working_dir: /app
     restart: on-failure
+    command: ["php", "-S", "0.0.0.0:8080", "-t", "/app/php/public", "/app/php/public/index.php"]
     ports:
       # Preview contract: the app listens on 8080 inside the container.
       - "3000:8080"
     volumes:
       - .:/app
-      # Dependencies live in a named volume (the bind mount would hide them);
-      # they are installed from the lockfile on startup, below.
+      # SQLite lives on a volume so accounts and shipments survive a restart.
+      - php-data:/data
+    environment:
+      - APP_URL=https://3000-${BASE44_PUBLIC_HOST_SUFFIX}
+      - DB_PATH=/data/app.sqlite
+      # The built-in server is single-process by default, which serializes the
+      # page's images/styles behind each other and can stall the preview iframe.
+      - PHP_CLI_SERVER_WORKERS=6
+    # Local dev defaults first, platform-delivered secrets LAST so a real value
+    # (SMTP_HOST/USER/PASS …) always wins over the placeholder.
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/') === false ? 1 : 0);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: on-failure
+    ports:
+      # Inbox UI — open https://8025-${BASE44_PUBLIC_HOST_SUFFIX}
+      - "8025:8025"
+    environment:
+      - MP_MAX_MESSAGES=200
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8025/api/v1/info || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Legacy Node/TanStack Start app (opt-in) ────────────────────────────────
+  node:
+    image: node:22-bookworm-slim
+    profiles: ["node"]
+    working_dir: /app
+    restart: on-failure
+    ports:
+      - "3001:8080"
+    volumes:
+      - .:/app
       - node_modules:/app/node_modules
     environment:
       - NODE_ENV=development
       - CI=true
       - VITE_AUTH_ENABLED=true
-      # Base64 preview host != any host Better Auth trusts by default, and the
-      # app's own preview allowlist only covers *.grok-sandbox.com. Pin the
-      # app's origin to the preview's public origin, otherwise email/password
-      # sign-in/sign-up is rejected with "Invalid origin".
-      - BETTER_AUTH_URL=https://3000-${BASE44_PUBLIC_HOST_SUFFIX}
-      # Platform-provided: Vite appends it to server.allowedHosts so the dev
-      # server answers the proxied preview hostname (which rotates).
+      - BETTER_AUTH_URL=https://3001-${BASE44_PUBLIC_HOST_SUFFIX}
       - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
-    # Platform-delivered secrets (empty until you add some on the dashboard);
-    # listed last so a real value always wins over anything above.
     env_file:
       - /run/base44/app.env
-    # Install/refresh dependencies from the pinned lockfile after the mounts are
-    # in place, then exec the dev server so it is PID 1 and restarts cleanly.
     command: ["sh", "-ec", "npm ci --no-audit --no-fund && exec npm run dev"]
-    # Probes real application responsiveness: "/" is SSR and runs a server
-    # function that touches the database.
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:8080/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 10
-      # npm ci + Vite + PGlite bootstrap on a cold start.
       start_period: 240s
 
 volumes:
   node_modules:
+  php-data:

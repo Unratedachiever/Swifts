@@ -1,57 +1,67 @@
 # AGENTS.md
 
-Findings from bringing this repo up in the Base44 sandbox. Manifests already
-describe the stack, so this file only records what is not obvious.
+Findings from bringing this repo up in the Base44 sandbox. Manifests describe the
+stack, so this file records only what is not obvious.
 
-## Running here
+## What runs in the preview
 
-Everything runs in one container via `docker-compose.base44.yml`:
+Two apps live in this repo:
+
+| Where | What | Preview |
+| --- | --- | --- |
+| `php/` | **The PHP port** (plain PHP + PDO + SQLite) — this is what port 3000 serves | http://localhost:3000 |
+| `src/`, `server/`, `scripts/` | The original TanStack Start (React 19) app, kept runnable | opt-in, host port 3001 |
 
 ```bash
-docker compose -f docker-compose.base44.yml up -d
-docker compose -f docker-compose.base44.yml logs -f web
+docker compose -f docker-compose.base44.yml up -d                      # PHP app + Mailpit
+docker compose -f docker-compose.base44.yml --profile node up -d node  # legacy Node app on 3001
+docker compose -f docker-compose.base44.yml logs -f php
 ```
 
-- The Vite dev server (TanStack Start) listens on **8080** inside the container
-  and is published on host **3000** (the preview port). `npm run dev` already
-  passes `--host 0.0.0.0 --port 8080`; `vite.config.ts` pins the same values.
-- Dependencies are installed at container start (`npm ci`) into a named volume
-  at `/app/node_modules`, because the repo is bind-mounted over `/app`. The
-  first boot therefore takes a while; the compose healthcheck allows for it.
-- Restart the service after changing `package.json`/`package-lock.json`; source
-  edits are picked up by Vite's HMR with no restart.
+- PHP is served by the built-in dev server
+  (`php -S 0.0.0.0:8080 -t /app/php/public /app/php/public/index.php`), reading the
+  bind-mounted source on every request — no build step, no dependency install.
+  `php/public/index.php` is the front controller and route table.
+- The Node service installs dependencies with `npm ci` at startup into a named
+  volume (the bind mount would hide them), which is why its first boot is slow.
 
-## Environment
+## Data
 
-- **No database service and no `DATABASE_URL` on purpose.** `src/lib/db.ts`
-  falls back to the embedded PGlite database and applies `migrations/*.sql` on
-  the first query. It is **in-memory**: everything (users, shipments) is lost
-  when the container restarts. Add a Postgres service and set `DATABASE_URL`
-  (then run `npm run db:migrate`) if you want the preview data to survive.
-- `BETTER_AUTH_URL` must stay pinned to the preview's public origin
-  (`https://3000-${BASE44_PUBLIC_HOST_SUFFIX}` in compose). Otherwise Better
-  Auth derives its origin from the request host, which is not in its allowlist
-  (`src/lib/auth/preview.ts` only covers `*.grok-sandbox.com`), and every
-  email/password sign-up/sign-in fails with **"Invalid origin"**.
-- `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` is passed through from the platform
-  env; Vite appends it to `server.allowedHosts` so the dev server answers the
-  proxied preview hostname. Do not hardcode a resolved host anywhere.
-- `VITE_AUTH_ENABLED=true` keeps real sign-in (email/password + the Grok
-  provider buttons). Setting it to `"false"` switches the app to a single
-  dev user (`requireUserId`), which only works while `DATABASE_URL` is unset.
-- Federated "Continue with Google/X" sign-in goes through the external Grok auth
-  broker and needs per-app `GROK_AUTH_ISSUER` / `GROK_AUTH_CLIENT_ID` /
-  `GROK_AUTH_CLIENT_SECRET`. Those are **not** available here — use email and
-  password. `GROK_PROJECT_ID` must stay unset (it marks workspace preview mode).
+- SQLite at `/data/app.sqlite` (volume `php-data`; `DB_PATH` overrides it).
+  `php/app/db.php` creates the schema and seeds the 16 facility locations plus two
+  DEMO shipments (`SWF100450231` in transit, `SWF100450875` delivered) on first use.
+- Passwords use `password_hash()`; sessions are rows in `sessions` with an
+  httpOnly `swiftship_session` cookie. No external database is needed.
+
+## Email (the welcome mail on sign-up)
+
+- `php/app/mail.php` is a dependency-free SMTP client (STARTTLS/SSL + AUTH LOGIN),
+  driven entirely by env vars.
+- Development default is **Mailpit** (`axllent/mailpit`, host port 8025): every
+  sign-up email lands in that inbox — open
+  `https://8025-${BASE44_PUBLIC_HOST_SUFFIX}` (or http://localhost:8025).
+- For real delivery, set `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/
+  `SMTP_SECURE`/`MAIL_FROM` on the Base44 dashboard; they arrive via
+  `/run/base44/app.env`, which compose lists LAST so the values win over
+  `.env.base44-defaults`. `MAIL_TRANSPORT=log` writes rendered email to
+  `php/data/mail/` instead of sending.
+- The email logo is a PNG rendered from the app's own SVG mark at
+  `php/public/assets/brand/mark.png`; it is referenced by absolute URL from
+  `APP_URL`, so the inbox can load it.
 
 ## Verifying
 
 ```bash
-curl -fsS http://localhost:3000/ | head            # SSR marketing page
-curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3000/login
-npm run typecheck
-npm test        # node --test scripts/*.test.mjs + app-data/auth unit tests
+curl -fsS http://localhost:3000/ | head                 # public home page
+curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3000/track/SWF100450231
+curl -fsS http://localhost:8025/api/v1/messages         # captured welcome emails
 ```
 
-Payments are demo/stub code (card `last4` only), so checkout needs no provider
-keys. First admin: register, then **Account → Activate staff access**.
+Register in the UI, then confirm the message arrived in Mailpit with the subject
+"Welcome to SwiftShip — your account is ready".
+
+## Not ported yet
+
+`/ship`, `/quote`, `/checkout` and `/admin` render a "port in progress" page;
+the account dashboard lists shipments but booking is still to come. The original
+React app still has all of these — run it with the `node` profile to compare.

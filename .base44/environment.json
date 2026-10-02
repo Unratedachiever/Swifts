@@ -2,5 +2,36 @@
   "previewPort": 3000,
   "healthPath": "/",
   "startCommand": "docker compose -f docker-compose.base44.yml up -d",
-  "secrets": []
+  "secrets": [
+    {
+      "name": "SMTP_HOST",
+      "description": "SMTP server hostname for real email delivery (e.g. smtp.gmail.com, smtp.zoho.com). Optional: without it, mail is captured by the local Mailpit inbox.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SMTP_PORT",
+      "description": "SMTP port: 587 for STARTTLS, 465 for implicit SSL.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SMTP_USER",
+      "description": "SMTP username (usually the full email address of the sending mailbox).",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SMTP_PASS",
+      "description": "SMTP password or app password for the sending mailbox.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SMTP_SECURE",
+      "description": "TLS mode: \"tls\" for STARTTLS (port 587), \"ssl\" for implicit TLS (port 465), or leave empty for plain.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "MAIL_FROM",
+      "description": "From address for outgoing mail, e.g. no-reply@yourdomain.com — must be allowed by your SMTP provider.",
+      "requiredAtBoot": false
+    }
+  ]
 }
